@@ -1,0 +1,9 @@
+{
+	"config":
+	{
+		"model":			"User",
+		"usernameColumn":	"username",
+		"passwordColumn":	"password",
+		"saltColumn":		"salt"
+	}
+}
