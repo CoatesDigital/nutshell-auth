@@ -58,18 +58,23 @@ namespace application\plugin\auth
 			if($realPasswordSalted != $providedPasswordSalted) return false;
 			
 			// Set the 'user' session variable
-			$this->plugin->Session->user = $user;
+			$this->plugin->Session->userID = $user['id'];
 			return true;
 		}
 		
 		public function isLoggedIn()
 		{
-			return ($this->plugin->Session->user == true);
+			return($this->getUserID() == true);
+		}
+		
+		public function getUserID()
+		{
+			return $this->plugin->Session->userID;
 		}
 		
 		public function logout()
 		{
-			$this->plugin->Session->user = null;
+			$this->plugin->Session->userID = null;
 			return true;
 		}
 	}
