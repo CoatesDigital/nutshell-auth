@@ -40,11 +40,7 @@ namespace application\plugin\auth
 			$model = $this->plugin->MvcQuery->getModel($modelName);
 			
 			// Get the user row from the table
-			$whereKeyVals = array
-			(
-				$usernameColumnName => $username
-			);
-			$result = $model->read($whereKeyVals);
+			$result = $model->read(array($usernameColumnName => $username));
 			
 			// No user by that name
 			if(!$result) return false;
