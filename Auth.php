@@ -13,6 +13,19 @@ namespace application\plugin\auth
 	 */
 	class Auth extends AppPlugin implements Singleton
 	{
+		private $additionalPartSQL = '';
+		
+		public function getAdditionalPartSQL()
+		{
+		    return $this->additionalPartSQL;
+		}
+		
+		public function setAdditionalPartSQL($additionalPartSQL)
+		{
+		    $this->additionalPartSQL = $additionalPartSQL;
+		    return $this;
+		}
+		
 		public function init()
 		{
 			require_once(__DIR__._DS_.'AuthException.php');
@@ -39,8 +52,10 @@ namespace application\plugin\auth
 			$saltColumnName		= $config->plugin->Auth->saltColumn;
 			$model = $this->plugin->MvcQuery->getModel($modelName);
 			
+			
+			
 			// Get the user row from the table
-			$result = $model->read(array($usernameColumnName => $username));
+			$result = $model->read(array($usernameColumnName => $username), array(), $this->additionalPartSQL);
 			
 			// No user by that name
 			if(!$result) return false;
