@@ -14,6 +14,12 @@ namespace application\plugin\auth
 	class Auth extends AppPlugin implements Singleton
 	{
 		private $additionalPartSQL = '';
+		private $debug = array();
+		
+		public function getDebug()
+		{
+			return $this->debug;
+		}
 		
 		public function getAdditionalPartSQL()
 		{
@@ -52,13 +58,15 @@ namespace application\plugin\auth
 			$saltColumnName		= $config->plugin->Auth->saltColumn;
 			$model = $this->plugin->MvcQuery->getModel($modelName);
 			
-			
-			
 			// Get the user row from the table
 			$result = $model->read(array($usernameColumnName => $username), array(), $this->additionalPartSQL);
 			
 			// No user by that name
-			if(!$result) return false;
+			if(!$result)
+			{
+				$this->debug = array('no user by that name', $usernameColumnName,  $username,  $this->additionalPartSQL);
+				return false;
+			}
 			
 			// does that user's salted password match this salted password?
 			$user					= $result[0];
@@ -66,7 +74,11 @@ namespace application\plugin\auth
 			$realPasswordSalted		= $user[$passwordColumnName];
 			$providedPasswordSalted	= $this->saltPassword($salt, $providedPassword);
 			
-			if($realPasswordSalted != $providedPasswordSalted) return false;
+			if($realPasswordSalted != $providedPasswordSalted)
+			{
+				$this->debug = array('password doesnt match', $realPasswordSalted, $providedPasswordSalted);
+				return false;
+			}
 			
 			// Set the 'user' session variable
 			$this->plugin->Session->userID = $user['id'];
