@@ -34,7 +34,7 @@ namespace application\plugin\auth
 		
 		public function init()
 		{
-			require_once(__DIR__._DS_.'AuthException.php');
+			
 		}
 		
 		public function generateSalt()
