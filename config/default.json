@@ -1,9 +1,13 @@
 {
 	"config":
 	{
-		"model":			"User",
-		"usernameColumn":	"username",
-		"passwordColumn":	"password",
-		"saltColumn":		"salt"
+		"model":								"User",
+		"usernameColumn":				"username",
+		"passwordColumn":				"password",
+		"saltColumn":						"salt",
+		"loginAttemptsColumn": 	"",
+		"lockTimeColumn": 			"",
+		"maxLoginAttempts": 		0,
+		"lockTimeoutPeriod": 		0
 	}
 }

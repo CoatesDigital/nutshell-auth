@@ -16,8 +16,15 @@ namespace application\plugin\auth
 		private $additionalPartSQL = '';
 		private $debug = array();
 		
+		const EXCEPTION_NO_USER = "No user by that name";
+		const EXCEPTION_PASSWORD_MISMATCH = "Password doesn't match";
+		const EXCEPTION_LOCKED_USER = "User has been locked out";
+		const ERROR_AUTH_FAIL = "User and password do not match";
+		const ERROR_LOCKED_USER = "User has been locked out";
+		
 		public function getDebug()
 		{
+			var_dump($this->debug);
 			return $this->debug;
 		}
 		
@@ -51,38 +58,48 @@ namespace application\plugin\auth
 		public function login($username, $providedPassword)
 		{
 			// Get the model & table details
-			$config = Nutshell::getInstance()->config;
-			$modelName			= $config->plugin->Auth->model;
-			$usernameColumnName	= $config->plugin->Auth->usernameColumn;
-			$passwordColumnName	= $config->plugin->Auth->passwordColumn;
-			$saltColumnName		= $config->plugin->Auth->saltColumn;
+			$config = Nutshell::getInstance()->config->plugin->Auth;
+			$modelName			= $config->model;
+			$usernameColumnName	= $config->usernameColumn;
+			$passwordColumnName	= $config->passwordColumn;
+			$saltColumnName		= $config->saltColumn;
 			$model = $this->plugin->MvcQuery->getModel($modelName);
-			
+				
 			// Get the user row from the table
 			$result = $model->read(array($usernameColumnName => $username), array(), $this->additionalPartSQL);
 			
+			$success = true;
 			// No user by that name
 			if(!$result)
 			{
-				$this->debug = array('no user by that name', $usernameColumnName,  $username,  $this->additionalPartSQL);
-				return false;
+				$this->debug = array('message' => self::ERROR_AUTH_FAIL, 'exception_message' => self::EXCEPTION_NO_USER, 'username_column' => $usernameColumnName, 'username' => $username, 'additional_sql' => $this->additionalPartSQL);
+				$success = false;
+			} else {
+				// does that user's salted password match this salted password?
+				$user					= $result[0];
+				$salt					= $user[$saltColumnName];
+				$realPasswordSalted		= $user[$passwordColumnName];
+				$providedPasswordSalted	= $this->saltPassword($salt, $providedPassword);
+				
+				if($realPasswordSalted != $providedPasswordSalted)
+				{
+					$this->debug = array('message' => self::ERROR_AUTH_FAIL, 'exception_message' => self::EXCEPTION_PASSWORD_MISMATCH, 'real_salted' => $realPasswordSalted, 'provided_salted' => $providedPasswordSalted);
+					$success = false;
+				}
 			}
 			
-			// does that user's salted password match this salted password?
-			$user					= $result[0];
-			$salt					= $user[$saltColumnName];
-			$realPasswordSalted		= $user[$passwordColumnName];
-			$providedPasswordSalted	= $this->saltPassword($salt, $providedPassword);
-			
-			if($realPasswordSalted != $providedPasswordSalted)
+			// is failed login lockout enabled?
+			if ($this->lockOutEnabled())
 			{
-				$this->debug = array('password doesnt match', $realPasswordSalted, $providedPasswordSalted);
-				return false;
+				$success = $this->checkLockout($user, $success, $model);
+			}	
+			
+			if ($success) {
+				// Set the 'user' session variable
+				$this->plugin->Session->userID = $user['id'];
 			}
 			
-			// Set the 'user' session variable
-			$this->plugin->Session->userID = $user['id'];
-			return true;
+			return $success;
 		}
 		
 		public function isLoggedIn()
@@ -99,6 +116,66 @@ namespace application\plugin\auth
 		{
 			$this->plugin->Session->userID = null;
 			return true;
+		}
+		
+		private function lockOutEnabled()
+		{
+			$config = Nutshell::getInstance()->config->plugin->Auth;
+			$loginAttemptsColumn = $config->loginAttemptsColumn;
+			$lockTimeColumn = $config->lockTimeColumn;
+			$maxLoginAttempts = $config->maxLoginAttempts;
+			$lockTimeoutPeriod = $config->lockTimeoutPeriod;
+			
+			return $maxLoginAttempts !== 0 && $lockTimeoutPeriod !== 0 && $loginAttemptsColumn !== "" && $lockTimeColumn !== "";
+		}
+		
+		private function checkLockout($user, $success, $model)
+		{
+			$config = Nutshell::getInstance()->config->plugin->Auth;
+			$loginAttemptsColumn = $config->loginAttemptsColumn;
+			$lockTimeColumn = $config->lockTimeColumn;
+			$maxLoginAttempts = $config->maxLoginAttempts;
+			$lockTimeoutPeriod = $config->lockTimeoutPeriod;
+			
+			$now = time();
+			// determine whetehr we are already locked out
+			$loginAttempts = $user[$loginAttemptsColumn]; 
+			$lockTime = $user[$lockTimeColumn];
+			$lockedOut = false;
+			if ($lockTime != 0) {
+				$lockedOut = ($loginAttempts > $maxLoginAttempts) && ($now < ($lockTime + $lockTimeoutPeriod)); 
+			}
+			// establish what to do
+			if ($success) {
+				// login succeeded
+				if ($lockedOut) {
+					// but we are locked out
+					$success = false;
+					$this->debug = array('message' => self::ERROR_LOCKED_USER, 'exception_message' => self::EXCEPTION_LOCKED_USER, 'login_attempts' => $loginAttempts, 'lock_time' => $lockTime);
+				} else {
+					// if needed reset the login_attempt counter and lock time
+					$lockTime = 0;
+					$loginAttempts = 0;
+				}
+			} else {
+				// login failed
+				$loginAttempts++;
+				if ($lockedOut) {
+						// we are already locked out
+						$this->debug = array('message' => self::ERROR_LOCKED_USER, 'exception_message' => self::EXCEPTION_LOCKED_USER, 'login_attempts' => $loginAttempts, 'lock_time' => $lockTime);
+				} else {
+					// we're not locked out, check if we should be
+					if ($loginAttempts == $maxLoginAttempts) {
+						$lockTime = $now;
+						$this->debug = array('message' => self::ERROR_LOCKED_USER, 'exception_message' => self::EXCEPTION_LOCKED_USER, 'login_attempts' => $loginAttempts, 'lock_time' => $lockTime);
+					}
+				}
+				
+			}
+			// update db to reflect attempts and lock time
+			$model->update(array($loginAttemptsColumn => $loginAttempts, $lockTimeColumn => $lockTime), array('email' => $user['email']));
+			
+			return $success;
 		}
 	}
 }
