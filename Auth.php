@@ -24,7 +24,6 @@ namespace application\plugin\auth
 		
 		public function getDebug()
 		{
-			var_dump($this->debug);
 			return $this->debug;
 		}
 		
@@ -60,19 +59,26 @@ namespace application\plugin\auth
 			// Get the model & table details
 			$config = Nutshell::getInstance()->config->plugin->Auth;
 			$modelName			= $config->model;
-			$usernameColumnName	= $config->usernameColumn;
+			$usernameColumns	= $config->usernameColumns;
 			$passwordColumnName	= $config->passwordColumn;
 			$saltColumnName		= $config->saltColumn;
 			$model = $this->plugin->MvcQuery->getModel($modelName);
+			
+			$result = null;
+			foreach ($usernameColumns as $usernameColumnName) {
+				// Get the user row from the table
+				$result = $model->read(array($usernameColumnName => $username), array(), $this->additionalPartSQL);
 				
-			// Get the user row from the table
-			$result = $model->read(array($usernameColumnName => $username), array(), $this->additionalPartSQL);
+				if ($result) {
+					break;
+				}
+			}
 			
 			$success = true;
-			// No user by that name
+			// No user by that name or email
 			if(!$result)
 			{
-				$this->debug = array('message' => self::ERROR_AUTH_FAIL, 'exception_message' => self::EXCEPTION_NO_USER, 'username_column' => $usernameColumnName, 'username' => $username, 'additional_sql' => $this->additionalPartSQL);
+				$this->debug = array('message' => self::ERROR_AUTH_FAIL, 'exception_message' => self::EXCEPTION_NO_USER, 'username_column' => $usernameColumns, 'username' => $username, 'additional_sql' => $this->additionalPartSQL);
 				$success = false;
 			} else {
 				// does that user's salted password match this salted password?
