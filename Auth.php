@@ -64,9 +64,9 @@ namespace application\plugin\auth
 			$saltColumnName		= $config->saltColumn;
 			$model = $this->plugin->MvcQuery->getModel($modelName);
 			
+			// Get the user row from the table
 			$result = null;
 			foreach ($usernameColumns as $usernameColumnName) {
-				// Get the user row from the table
 				$result = $model->read(array($usernameColumnName => $username), array(), $this->additionalPartSQL);
 				
 				if ($result) {
@@ -75,12 +75,13 @@ namespace application\plugin\auth
 			}
 			
 			$success = true;
-			// No user by that name or email
-			if(!$result)
+			if(!$result) // No user by that name or email
 			{
 				$this->debug = array('message' => self::ERROR_AUTH_FAIL, 'exception_message' => self::EXCEPTION_NO_USER, 'username_column' => $usernameColumns, 'username' => $username, 'additional_sql' => $this->additionalPartSQL);
 				$success = false;
-			} else {
+			}
+			else // There is a user by this name
+			{
 				// does that user's salted password match this salted password?
 				$user					= $result[0];
 				$salt					= $user[$saltColumnName];
@@ -92,13 +93,13 @@ namespace application\plugin\auth
 					$this->debug = array('message' => self::ERROR_AUTH_FAIL, 'exception_message' => self::EXCEPTION_PASSWORD_MISMATCH, 'real_salted' => $realPasswordSalted, 'provided_salted' => $providedPasswordSalted);
 					$success = false;
 				}
-			}
 			
-			// is failed login lockout enabled?
-			if ($this->lockOutEnabled())
-			{
-				$success = $this->checkLockout($user, $success, $model);
-			}	
+				// is failed login lockout enabled?
+				if ($this->lockOutEnabled())
+				{
+					$success = $this->checkLockout($user, $success, $model);
+				}
+			}
 			
 			if ($success) {
 				// Set the 'user' session variable
