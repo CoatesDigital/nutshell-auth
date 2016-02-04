@@ -56,6 +56,11 @@ namespace application\plugin\auth
 		
 		public function login($username, $providedPassword)
 		{
+      if (isset($this->plugin->Session->samlUserdata) /* and has data dir config*/) {
+        $this->plugin->Session->userID = 4; // fix with employee id
+        return true;
+      }
+      
 			// Get the model & table details
 			$config = Nutshell::getInstance()->config->plugin->Auth;
 			$modelName			= $config->model;
