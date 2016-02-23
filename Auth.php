@@ -1,6 +1,8 @@
 <?php
 namespace application\plugin\auth
 {
+use application\helper\LogHelper;
+
 	use nutshell\Nutshell;
 	use nutshell\behaviour\Singleton;
 	use nutshell\core\plugin\Plugin;
@@ -56,10 +58,14 @@ namespace application\plugin\auth
 		
 		public function login($username, $providedPassword)
 		{
-      if (isset($this->plugin->Session->samlUserdata) /* and has data dir config*/) {
-        $this->plugin->Session->userID = 4; // fix with employee id
-        return true;
-      }
+            LogHelper::setLogClass('application.plugin.Saml');
+            LogHelper::debug("Auth::login()");
+            if (isset($this->plugin->Session->samlUserdata) /* and has data dir config*/) {
+                LogHelper::debug("AUTH has samlUserData");
+                
+                // $this->plugin->Session->userID = 4; // fix with employee id
+                // return true;
+            }
       
 			// Get the model & table details
 			$config = Nutshell::getInstance()->config->plugin->Auth;
