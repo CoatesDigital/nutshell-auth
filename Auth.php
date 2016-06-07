@@ -57,7 +57,7 @@ use application\helper\LogHelper;
 		}
 		
 		public function login($username, $providedPassword)
-		{
+		{ 
             LogHelper::setLogClass('application.plugin.Saml');
             LogHelper::debug("Auth::login()");
             if (isset($this->plugin->Session->samlUserdata) /* and has data dir config*/) {
